@@ -4,6 +4,8 @@ require "test_helper"
 
 class TestThreadMemoized < Minitest::Test
   class UserPolicy < ::UserPolicy
+    include ActionPolicy::Behaviours::ThreadMemoized
+
     class << self
       def policies
         @policies ||= []
@@ -17,6 +19,14 @@ class TestThreadMemoized < Minitest::Test
     def initialize(*)
       super
       self.class.policies << self
+    end
+
+    def composed?
+      if !allowed_to?(:show?, record)
+        return true
+      end
+
+      !allowed_to?(:index?, record)
     end
   end
 
@@ -62,6 +72,10 @@ class TestThreadMemoized < Minitest::Test
 
     def talk_as?(user, current_user)
       allowed_to?(:talk?, user, context: {user: current_user})
+    end
+
+    def composed?(user)
+      allowed_to?(:composed?, user)
     end
   end
 
@@ -184,5 +198,11 @@ class TestThreadMemoized < Minitest::Test
     # treated as the same context for policies
     assert channel.talk_as?(user, channel.user)
     assert_equal 2, UserPolicy.policies.size
+  end
+
+  def test_with_composed_rule
+    user = CacheableUser.new("guest")
+    channel = ChatChannel.new("admin")
+    refute channel.composed?(user)
   end
 end

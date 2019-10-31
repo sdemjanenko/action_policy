@@ -101,11 +101,18 @@ module ActionPolicy
       #
       # If record is `nil` then we uses the current policy.
       def allowed_to?(rule, record = :__undef__, **options)
-        if (record == :__undef__ || record == self.record) && options.empty?
-          __apply__(rule)
+        policy = if (record == :__undef__ || record == self.record) && options.empty?
+          self
         else
-          policy_for(record: record, **options).apply(rule)
+          policy_for(record: record, **options)
         end
+
+        res = nil
+        policy.with_clean_result do
+          res = policy.apply(rule)
+        end
+
+        res
       end
 
       # An alias for readability purposes
